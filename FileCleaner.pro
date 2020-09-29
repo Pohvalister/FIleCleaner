@@ -16,12 +16,14 @@ include(./lib/QXlsx/QXlsx.pri)
 
 SOURCES += \
     main.cpp \
-    main_table_model.cpp \
-    mainwindow.cpp
+    filetablemodel.cpp \
+    mainwindow.cpp \
+    settemplatedialog.cpp
 
 HEADERS += \
-    main_table_model.h \
-    mainwindow.h
+    filetablemodel.h \
+    mainwindow.h \
+    settemplatedialog.h
 
 FORMS += \
     mainwindow.ui

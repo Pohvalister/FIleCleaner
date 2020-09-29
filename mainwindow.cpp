@@ -1,11 +1,13 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "QFileDialog"
-#include "QTableWidget"
+#include "QTableView"
 #include "QListWidget"
 #include "QDirIterator"
-#include "main_table_model.h"
+#include "QProgressDialog"
 
+#include "filetablemodel.h"
+#include "settemplatedialog.h"
 //
 #include "xlsxdocument.h"
 #include "xlsxchartsheet.h"
@@ -21,7 +23,7 @@ QFileDialog* mainFileDialog;
 QString workingDirectoryString = "";
 
 QStringList fileList;
-MainTableModel tableModel;
+FileTableModel* tableModel = new FileTableModel();
 
 QStringList templatesList;
 
@@ -31,14 +33,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    /*slots:
-    void slotSaveExel();*/
+    this->ui->fileListView->setModel(tableModel);
+    this->ui->fileListView->show();
 
-    this->ui->fileTableView->setModel(&tableModel);
-    this->ui->fileTableView->update();
-    this->ui->fileTableView->show();
-
-    //диалог для посика необходимых директорий
+    //диалог для поиска необходимых директорий
     mainFileDialog = new QFileDialog;
     mainFileDialog->setFileMode(QFileDialog::DirectoryOnly);
 
@@ -60,11 +58,8 @@ MainWindow::MainWindow(QWidget *parent)
     setTemplate->setStatusTip("Go to search template settings");
     setTemplate->setWhatsThis("Go to search template settings");
 
-    connect(setTemplate, SIGNAL(triggered()), SLOT(slotSaveExel()));
+    connect(setTemplate, SIGNAL(triggered()), SLOT(slotSetTemplate()));
     this->ui->menu_Settings->addAction(setTemplate);
-
-    //QToolBar* ptb = new QToolBar("Linker ToolBar");
-    //ptb->addAction(pactSave);
 }
 
 MainWindow::~MainWindow()
@@ -77,16 +72,21 @@ void MainWindow::on_openDirButton_clicked()
 {
     QString dirName;
     dirName = mainFileDialog->getExistingDirectory();
-
     workingDirectoryString = dirName;
-
     this->ui->fileTextEdit->setText(dirName);
 }
 
 void MainWindow::on_getFilenamesButton_clicked()
 {
-    QDir directory(workingDirectoryString);
+    if (workingDirectoryString == ""){
+        QMessageBox emptyStringBox;
+        emptyStringBox.setWindowTitle("Ошибка чтения");
+        emptyStringBox.setText("Директория не указана");
+        emptyStringBox.exec();
+        return;
+    }
 
+    QDir directory(workingDirectoryString);
     if (!directory.exists()){
         QMessageBox nonExistMsgBox;
         nonExistMsgBox.setWindowTitle("Ошибка чтения");
@@ -94,6 +94,7 @@ void MainWindow::on_getFilenamesButton_clicked()
         nonExistMsgBox.exec();
         return;
     }
+
     if (directory.isEmpty()){
         QMessageBox emptyMsgBox;
         emptyMsgBox.setWindowTitle("Ошибка чтения");
@@ -102,42 +103,63 @@ void MainWindow::on_getFilenamesButton_clicked()
         return;
     }
 
-    QDirIterator it(workingDirectoryString, templatesList, QDir::Files, QDirIterator::Subdirectories);
-    int counter = 0;
-    fileList = QStringList();
-    while (it.hasNext()){
-        QString str = it.next();
-        fileList.append(str);
+    QPair<int, int> status = tableModel->set_new_directory(workingDirectoryString);
 
-        if (counter % 10 == 0)
-            this->ui->statusLabel->setText("Файлов: " + QString::number(counter));
-        fileList.push_back(str);
-        counter++;
-    }
+    tableScrollBarRefresh(status.first, status.second);
 
-    this->ui->statusLabel->setText("Файлов: " + QString::number(counter));
+    this->ui->statusLabel->setText("Файлов: " + QString::number(status.first));
     QMessageBox foundMsgBox;
     foundMsgBox.setWindowTitle("Поиск закончен");
-    foundMsgBox.setText("Внутри директории файлов найдено: " + QString::number(counter));
+    foundMsgBox.setText("Внутри директории файлов найдено: " + QString::number(status.first));
     foundMsgBox.exec();
 
-    tableModel.rowCnt = 3;
 
-    this->ui->fileTableView->update();
-    this->ui->fileTableView->show();
-   //fileList = directory.entryList(QDir::Files);
+}
 
+void MainWindow::tableScrollBarRefresh(const int& max, const int& size){
+    this->ui->tableScrollBar->setMaximum(max);
+    this->ui->tableScrollBar->setValue(size);
 }
 
 void MainWindow::on_exelSaveButton_clicked()
 {
+    slotSaveExel();
+}
 
+void MainWindow::slotSaveExel(){
     QXlsx::Document xlsx;
 
-    int counter = 1;
-    foreach(QString str, fileList){
-        xlsx.write(counter, 1, str);
-        counter++;
-    }
+    //QStringList fileList = tableModel.get_file_list();
+
+
+
     xlsx.saveAs("Test.xlsx");
+}
+
+void MainWindow::slotSetTemplate(){
+    SetTemplateDialog tdlg( this );
+
+    connect(&tdlg, SIGNAL( applied() ), SLOT ( onApplied()));
+    switch(tdlg.exec()){
+    case QDialog::Accepted:
+        templatesList.append(tdlg.getInput());
+        this->ui->tmpLabel->setText(tdlg.getInput().front());
+        break;
+    default:
+        break;
+   }
+    return;
+}
+
+void MainWindow::onApplied(){
+    if (SetTemplateDialog* dlg = qobject_cast<SetTemplateDialog*>(sender())){
+        templatesList.append(dlg->getInput());
+        this->ui->tmpLabel->setText(dlg->getInput().front());
+    }
+}
+
+
+void MainWindow::on_tableScrollBar_valueChanged(int value)
+{
+    tableModel->scroll_table(value);
 }

@@ -22,7 +22,16 @@ private slots:
 
     void on_exelSaveButton_clicked();
 
+    void slotSaveExel();
+
+    void slotSetTemplate();
+    void onApplied();
+
+    void on_tableScrollBar_valueChanged(int value);
+
 private:
     Ui::MainWindow *ui;
+
+    void tableScrollBarRefresh(const int& max, const int& size);
 };
 #endif // MAINWINDOW_H
