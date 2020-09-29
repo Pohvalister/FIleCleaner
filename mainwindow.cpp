@@ -35,6 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     this->ui->fileListView->setModel(tableModel);
     this->ui->fileListView->show();
+    this->ui->tableScrollBar->setPageStep(tableModel->get_row_amount());
 
     //диалог для поиска необходимых директорий
     mainFileDialog = new QFileDialog;
@@ -103,7 +104,7 @@ void MainWindow::on_getFilenamesButton_clicked()
         return;
     }
 
-    QPair<int, int> status = tableModel->set_new_directory(workingDirectoryString);
+    QPair<int, int> status = tableModel->set_new_directory(workingDirectoryString, templatesList);
 
     tableScrollBarRefresh(status.first, status.second);
 
@@ -117,7 +118,8 @@ void MainWindow::on_getFilenamesButton_clicked()
 }
 
 void MainWindow::tableScrollBarRefresh(const int& max, const int& size){
-    this->ui->tableScrollBar->setMaximum(max);
+    int step = this->ui->tableScrollBar->pageStep();
+    this->ui->tableScrollBar->setMaximum(max - step);
     this->ui->tableScrollBar->setValue(size);
 }
 

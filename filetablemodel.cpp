@@ -4,22 +4,20 @@
 
 
 FileTableModel::FileTableModel(QObject *parent)
-    :QAbstractTableModel(parent){
+    :QAbstractListModel(parent){
 }
 
 int FileTableModel::rowCount(const QModelIndex &parent) const{
-    return std::min(ROW_MAX, file_amount);
+    return std::max(std::min(ROW_MAX, file_amount - 1), 0);
 }
 
-int FileTableModel::columnCount(const QModelIndex &parent) const{
-    return COLUMN_MAX;
-}
 
 QVariant FileTableModel::data(const QModelIndex &index, int role) const{
 
     switch (role) {
     case Qt::DisplayRole:
-        return fileListCache[(scanned_amount - file_cache_start) + index.row()];
+        return fileListCache[scanned_amount + index.row()];
+       // return fileListCache[(scanned_amount - (scanned_amount/CACHE_AMOUNT)*CACHE_AMOUNT) + index.row()];
 
     default:
         return QVariant();
@@ -36,69 +34,49 @@ QPair<int,int> FileTableModel::set_new_directory(const QString &dir, const QStri
 }
 
 QPair<int,int> FileTableModel::refresh_table(){
-    /*
-    QDirIterator it_first(directory, templates, QDir::Files, QDirIterator::Subdirectories);
-    QDirIterator it_last(directory, templates, QDir::Files, QDirIterator::Subdirectories);
-
-    int cashe_start = std::max(scanned_amount - CASHE_SIDE, 0);
-    int cashe_end = std::min(scanned_amount + CASHE_SIDE, file_amount);
-
+    QDirIterator it(directory, templates, QDir::Files, QDirIterator::Subdirectories);
+    fileListCache.clear();
     int count = 0;
-    int scanned_count = 0;
-    int cashe_count = 0;
-
-    while (it_last.hasNext() && count < RAW_MAX) {
-        count++;
-    }
-
-    while(it_last.hasNext() && count < cashe_start){
-       it_first.next();
-       scanned_count++;
-       cashe_count++;
-       it_last.next();
-       count++;
-    }
-
-    file_cashe_start = cashe_count;
-
-    fileListCashe.clear();
-
-    QString last_name = it_last.fileName();
-    QString file_name = it_first.fileName();
-    while(it_first.hasNext() && file_name != last_name && cashe_count){
-        fileListCashe.append(it_first.next());
-    }
-
-    while(it_last.hasNext()){
-        it_last.next();
+    while (it.hasNext()){
+        fileListCache.push_back(it.next());
         count++;
     }
 
     file_amount = count;
-*/
-    fileListCache.clear();
-    QDirIterator it(directory, templates, QDir::Files, QDirIterator::Subdirectories);
-    while (it.hasNext()){
-        fileListCache.append(it.next());
-    }
-    file_amount = fileListCache.size();
-    scanned_amount = std::min(scanned_amount,std::max(file_amount - ROW_MAX, 0));
+    if (scanned_amount > file_amount - ROW_MAX)
+        scanned_amount = 0;
+
     refresh_view();
-    return QPair<int,int>(file_amount,scanned_amount);
+    return QPair<int,int>(file_amount, scanned_amount);
 }
+
+/*void FileTableModel::refresh_cache(){
+    fileListCache.clear();
+    int cache_start = scanned_amount / CACHE_AMOUNT;
+    QDirIterator it(fileCheckpoints[cache_start], templates, QDir::Files, QDirIterator::Subdirectories);
+    QString last_file_name = (cache_start > fileCheckpoints.size() - 2 ? "" : fileCheckpoints[cache_start + 2]);//2 блока, чтобы учесть переход конца
+    bool tmp = it.hasNext();
+    QString fn = it.fileName();
+    while(it.hasNext() && it.fileName() != last_file_name){
+        fileListCache.push_back(it.next());
+    }
+}*/
 
 void FileTableModel::scroll_table(const int &scroll_val){
     scanned_amount = scroll_val;
     refresh_view();
-    //if (scroll_val + scanned_amount < file_cashe_start || scroll_val + scanned_amount + RAW_MAX > file_amount);
 }
 
 void FileTableModel::refresh_view(){
-    QModelIndex topLeft = createIndex(0,0);
-    QModelIndex botRight = createIndex(ROW_MAX - 1,COLUMN_MAX - 1);
+    //QModelIndex topLeft = createIndex(0,0);
+    //QModelIndex botRight = createIndex(ROW_MAX - 1,COLUMN_MAX - 1);
     endResetModel();
     //emit this->dataChanged(topLeft, botRight, {Qt::DisplayRole});
     //emit this->
 
     //emit QAbstractTableModel::dataChanged(topLeft, botRight, {Qt::DisplayRole});
+}
+
+int FileTableModel::get_row_amount() const{
+    return ROW_MAX;
 }
